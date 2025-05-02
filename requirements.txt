@@ -1,0 +1,4 @@
+nmap
+tabulate
+colorama
+pyfiglet
