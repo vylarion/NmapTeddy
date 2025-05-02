@@ -1,6 +1,3 @@
-Here’s a clean, professional `README.md` for your **Nmap Teddy** project that reflects its functionality and ease of use:
-
----
 
 # 🐻 Nmap Teddy
 
