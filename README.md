@@ -82,15 +82,19 @@ Follow the prompts to:
 _| \_| _|  _|  _| \__,_|  .__/        _| \___| \__,_| \__,_| \__, | 
                           _|                                  ____/             
 
-Enter the domain or IP address to scan:  scanme.nmap.org
+Enter the domain or IP address to scan: scanme.nmap.org
 
 Choose a functionality:
 1. Port Scan
-2. System Detection
-3. Vulnerability Identification
-4. Network Topology & Architecture
+2. Service Detection
+3. OS Detection
+4. Vulnerability Scan
+5. Stealth Scan
+6. Aggressive Scan
+7. Traceroute Scan
+8. Custom Scan
 
-Enter choice (1/2/3/4):
+Choose scan type [1]:
 ```
 
 ---
