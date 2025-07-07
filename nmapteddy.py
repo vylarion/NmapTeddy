@@ -9,191 +9,173 @@ init(autoreset=True)
 
 def ascii_art(text, color=Fore.CYAN):
     art = figlet_format(text, font="slant")
-    print(f"{color}{art}{Style.RESET_ALL}")
+    print(f"{color}{art}{Style.RESET_ALL}")")
 
-# Display tool name
-ascii_art("Nmap Teddy", Fore.LIGHTGREEN_EX)
+def prompt_choice(prompt, options, allow_multiple=False):
+    print(f"{Fore.LIGHTYELLOW_EX}{prompt}{Style.RESET_ALL}")
+    for key, (desc, explanation) in options.items():
+        print(f"[{key}] {desc} - {explanation}")
+    if allow_multiple:
+        choice = input("Enter choices (comma-separated): ").strip()
+        return [c.strip() for c in choice.split(',') if c.strip() in options]
+    else:
+        choice = input("Enter choice: ").strip()
+        return choice if choice in options else None
 
-def resolve_host(user_input):
-    try:
-        ip = socket.gethostbyname(user_input)
-        print(f"{Fore.LIGHTCYAN_EX}Resolved {user_input} to {ip}{Style.RESET_ALL}")
-        return ip
-    except socket.gaierror:
-        print(f"{Fore.LIGHTRED_EX}Could not resolve hostname: {user_input}{Style.RESET_ALL}")
-        return None
+def prompt_input(prompt, default=""):
+    value = input(f"{Fore.LIGHTCYAN_EX}{prompt} [{default}]: {Style.RESET_ALL}").strip()
+    return value or default
 
-def save_results(filename, content):
-    try:
+def port_scan():
+    target = prompt_input("Target for port scan", "scanme.nmap.org")
+    ports = prompt_input("Number of top ports to scan", "100")
+    command = f"nmap -Pn --top-ports {ports} {target}"
+    print(f"\n{Fore.LIGHTGREEN_EX}Command: {command}{Style.RESET_ALL}\n")
+
+def service_scan():
+    target = prompt_input("Target for service/version detection", "scanme.nmap.org")
+    ports = prompt_input("Number of top ports to scan", "100")
+    command = f"nmap -sV -Pn --top-ports {ports} {target}"
+    print(f"\n{Fore.LIGHTGREEN_EX}Command: {command}{Style.RESET_ALL}\n")
+
+def os_detection():
+    target = prompt_input("Target for OS detection", "scanme.nmap.org")
+    command = f"nmap -O -Pn {target}"
+    print(f"\n{Fore.LIGHTGREEN_EX}Command: {command}{Style.RESET_ALL}\n")
+
+def vuln_scan():
+    target = prompt_input("Target for vulnerability scan", "scanme.nmap.org")
+    command = f"nmap --script vuln -Pn {target}"
+    print(f"\n{Fore.LIGHTGREEN_EX}Command: {command}{Style.RESET_ALL}\n")
+
+def stealth_scan():
+    target = prompt_input("Target for stealth scan (SYN)", "scanme.nmap.org")
+    command = f"nmap -sS -Pn -T3 {target}"
+    print(f"\n{Fore.LIGHTGREEN_EX}Command: {command}{Style.RESET_ALL}\n")
+
+def aggressive_scan():
+    target = prompt_input("Target for aggressive scan (-A)", "scanme.nmap.org")
+    command = f"nmap -A {target}"
+    print(f"\n{Fore.LIGHTGREEN_EX}Command: {command}{Style.RESET_ALL}\n")
+
+def traceroute_scan():
+    target = prompt_input("Target for traceroute", "scanme.nmap.org")
+    command = f"nmap -sn --traceroute {target}"
+    print(f"\n{Fore.LIGHTGREEN_EX}Command: {command}{Style.RESET_ALL}\n")
+
+def custom_scan():
+    flags = []
+    scan_types = {
+        'sS': ("SYN Scan", "Stealthy and fast TCP scan"),
+        'sT': ("TCP Connect", "Standard full TCP connection scan"),
+        'sU': ("UDP Scan", "Scan UDP ports"),
+        'sV': ("Version Detection", "Identify services and versions"),
+        'sN': ("Null Scan", "No flags set - stealth scan"),
+        'sF': ("FIN Scan", "TCP FIN packets sent"),
+        'sX': ("Xmas Scan", "Sets FIN, PSH and URG flags"),
+        'sA': ("ACK Scan", "For firewall rule detection"),
+        'sW': ("Window Scan", "Advanced ACK scan variant")
+    }
+    chosen_types = prompt_choice("Select scan types (you can choose multiple):", scan_types, True)
+    flags.extend([f"-{t}" for t in chosen_types])
+
+    target = prompt_input("Enter target IP, domain, or file of targets (-iL)", "scanme.nmap.org")
+    if target.endswith(".txt") or os.path.exists(target):
+        flags.append(f"-iL {target}")
+        target = ""
+
+    print("\nPort Options:")
+    port_mode = prompt_input("Scan top ports [t] or specific ports [s] or full scan [f]", "t")
+    if port_mode == 't':
+        num = prompt_input("Enter number of top ports", "100")
+        flags.append(f"--top-ports {num}")
+    elif port_mode == 's':
+        ports = prompt_input("Enter comma-separated port numbers or ranges", "22,80,443")
+        flags.append(f"-p {ports}")
+    elif port_mode == 'f':
+        flags.append("-p-")
+
+    host_discovery = {
+        'Pn': ("No Ping", "Skip host discovery"),
+        'PE': ("ICMP Echo", "Ping with ICMP Echo"),
+        'PS': ("TCP SYN Ping", "Ping with TCP SYN"),
+        'PA': ("TCP ACK Ping", "Ping with TCP ACK"),
+        'PU': ("UDP Ping", "Ping with UDP packets"),
+        'PR': ("ARP Ping", "Ping using ARP requests (LAN only)")
+    }
+    hd_choice = prompt_choice("Select host discovery method(s):", host_discovery, True)
+    flags.extend([f"-{h}" for h in hd_choice])
+
+    timing = {
+        'T0': ("Paranoid", "Very slow, useful against IDS"),
+        'T1': ("Sneaky", "Slow, IDS evasion"),
+        'T2': ("Polite", "Slows down to use less bandwidth/CPU"),
+        'T3': ("Normal", "Default"),
+        'T4': ("Aggressive", "Faster scan, less stealth"),
+        'T5': ("Insane", "Very fast, likely to be detected")
+    }
+    timing_choice = prompt_choice("Choose timing template:", timing)
+    if timing_choice:
+        flags.append(f"-{timing_choice}")
+
+    verbosity = prompt_input("Add verbosity? [v/vv] (leave blank to skip)", "")
+    if verbosity:
+        flags.append(f"-{verbosity}")
+
+    use_scripts = prompt_input("Use NSE scripts? (y/n)", "n")
+    if use_scripts.lower() == 'y':
+        print("\nCommon categories: auth, broadcast, brute, default, discovery, dos, exploit, external, fuzzer, intrusive, malware, safe, version, vuln")
+        script = prompt_input("Enter script name or category (e.g., vuln,http-title,default)", "vuln")
+        flags.append(f"--script {script}")
+
+    if prompt_input("Enable OS detection? (y/n)", "n").lower() == 'y':
+        flags.append("-O")
+    if prompt_input("Enable traceroute? (y/n)", "n").lower() == 'y':
+        flags.append("--traceroute")
+
+    if prompt_input("Add firewall evasion techniques? (y/n)", "n").lower() == 'y':
+        if prompt_input("Use decoy mode? (y/n)", "n").lower() == 'y':
+            decoys = prompt_input("Enter decoy IPs (comma-separated)", "1.2.3.4,5.6.7.8")
+            flags.append(f"--decoy {decoys}")
+        if prompt_input("Use fragmented packets? (y/n)", "n").lower() == 'y':
+            flags.append("-f")
+        if prompt_input("Randomize targets? (y/n)", "n").lower() == 'y':
+            flags.append("--randomize-hosts")
+        if prompt_input("Spoof MAC address? (y/n)", "n").lower() == 'y':
+            mac = prompt_input("Enter MAC (0 for random)", "0")
+            flags.append(f"--spoof-mac {mac}")
+
+    output_format = prompt_input("Save output to file? Enter format (n: normal, x: xml, g: grepable, a: all) or blank to skip", "")
+    if output_format in ['n', 'x', 'g', 'a']:
+        file_name = prompt_input("Enter output file name prefix", f"nmap_output")
+        if output_format == 'a':
+            flags.append(f"-oA {file_name}")
+        else:
+            flags.append(f"-o{output_format.upper()} {file_name}.{output_format}")
+
+    command = f"nmap {' '.join(flags)} {target}".strip()
+    print(f"\n{Fore.LIGHTGREEN_EX}Constructed Nmap Command:{Style.RESET_ALL}\n{command}\n")
+    save = prompt_input("Save this command to file? (y/n)", "n")
+    if save.lower() == 'y':
+        filename = prompt_input("Enter filename", "nmap_command.sh")
         with open(filename, 'w') as f:
-            f.write(content)
-        print(f"{Fore.LIGHTGREEN_EX}Results saved to {filename}{Style.RESET_ALL}\n")
-    except Exception as e:
-        print(f"{Fore.LIGHTRED_EX}Failed to save file: {e}{Style.RESET_ALL}")
-
-def prompt_save(tabulated_result):
-    choice = input(f"\n{Fore.LIGHTYELLOW_EX}Save this output? (y/n): {Style.RESET_ALL}").strip().lower()
-    if choice == 'y':
-        filename = input("Enter filename (e.g., result.txt): ").strip()
-        save_results(filename, tabulated_result)
-
-def port_scan(scanner, host):
-    try:
-        top_ports = int(input(f"{Fore.LIGHTCYAN_EX}Enter number of top ports to scan: {Style.RESET_ALL}").strip())
-    except ValueError:
-        print(f"{Fore.LIGHTRED_EX}Invalid number of ports.{Style.RESET_ALL}")
-        return
-
-    print(f"\n{Fore.LIGHTGREEN_EX}Scanning {host} for top {top_ports} ports...\n{Style.RESET_ALL}")
-    scanner.scan(host, arguments=f'-Pn --top-ports {top_ports}')
-
-    if host not in scanner.all_hosts():
-        print(f"{Fore.LIGHTRED_EX}No results. Host '{host}' may be unreachable.{Style.RESET_ALL}")
-        return
-
-    results = []
-    for proto in scanner[host].all_protocols():
-        for port in sorted(scanner[host][proto].keys()):
-            data = scanner[host][proto][port]
-            results.append({
-                'Port': port,
-                'State': data['state'],
-                'Service': data.get('name', 'unknown')
-            })
-
-    results = sorted(results, key=lambda x: {'open': 0, 'filtered': 1}.get(x['State'], 2))
-    table = tabulate(results, headers="keys", tablefmt="grid")
-    print(table)
-
-    print(f"\n{Fore.LIGHTCYAN_EX}Options:{Style.RESET_ALL}")
-    print("1. Save output")
-    print("2. Scan & show running services (version detection)")
-    option = input(f"{Fore.LIGHTYELLOW_EX}Enter your choice (1/2): {Style.RESET_ALL}").strip()
-
-    if option == '1':
-        prompt_save(table)
-    elif option == '2':
-        print(f"\n{Fore.LIGHTGREEN_EX}Scanning with service/version detection...\n{Style.RESET_ALL}")
-        scanner.scan(host, arguments=f'-sV -Pn --top-ports {top_ports}')
-        if host not in scanner.all_hosts():
-            print(f"{Fore.LIGHTRED_EX}Service scan failed. Host '{host}' may be unreachable.{Style.RESET_ALL}")
-            return
-
-        results = []
-        for proto in scanner[host].all_protocols():
-            for port in sorted(scanner[host][proto].keys()):
-                data = scanner[host][proto][port]
-                results.append({
-                    'Port': port,
-                    'State': data['state'],
-                    'Service': data.get('name', 'unknown'),
-                    'Product': data.get('product', 'unknown'),
-                    'Version': data.get('version', 'unknown')
-                })
-        table = tabulate(results, headers="keys", tablefmt="grid")
-        print(table)
-        prompt_save(table)
-    else:
-        print(f"{Fore.LIGHTRED_EX}Invalid choice.{Style.RESET_ALL}")
-
-def system_detection(scanner, host):
-    print(f"\n{Fore.LIGHTGREEN_EX}Performing OS detection on {host}...\n{Style.RESET_ALL}")
-    scanner.scan(host, arguments='-O -Pn')
-
-    if host not in scanner.all_hosts():
-        print(f"{Fore.LIGHTRED_EX}No results. Host '{host}' may be unreachable.{Style.RESET_ALL}")
-        return
-
-    results = []
-    try:
-        for match in scanner[host]['osmatch'][:3]:
-            results.append({
-                'OS': match['name'],
-                'Accuracy': f"{match['accuracy']}%",
-                'Type': match.get('osclass', [{}])[0].get('type', 'unknown')
-            })
-    except KeyError:
-        results.append({'OS': 'N/A', 'Accuracy': 'N/A', 'Type': 'N/A'})
-
-    table = tabulate(results, headers="keys", tablefmt="grid")
-    print(table)
-    prompt_save(table)
-
-def vulnerability_scan(scanner, host):
-    print(f"\n{Fore.LIGHTGREEN_EX}Running vulnerability scan... (This might take some time){Style.RESET_ALL}")
-    scanner.scan(host, arguments='-Pn --script vuln')
-
-    if host not in scanner.all_hosts():
-        print(f"{Fore.LIGHTRED_EX}No results. Host '{host}' may be unreachable.{Style.RESET_ALL}")
-        return
-
-    results = []
-    for proto in scanner[host].all_protocols():
-        for port in scanner[host][proto]:
-            scripts = scanner[host][proto][port].get('script', {})
-            for name, output in scripts.items():
-                results.append({
-                    'Script': name,
-                    'Port': port,
-                    'Output': (output[:100] + '...') if len(output) > 100 else output
-                })
-
-    if results:
-        table = tabulate(results, headers="keys", tablefmt="grid")
-        print(table)
-        prompt_save(table)
-    else:
-        print(f"{Fore.LIGHTYELLOW_EX}No vulnerabilities found or scripts returned no output.{Style.RESET_ALL}")
-
-def network_topology(scanner, host):
-    print(f"\n{Fore.LIGHTGREEN_EX}Tracing network path to {host}...\n{Style.RESET_ALL}")
-    scanner.scan(host, arguments='-Pn -sn --traceroute')
-
-    if host not in scanner.all_hosts():
-        print(f"{Fore.LIGHTRED_EX}No results. Host '{host}' may be unreachable.{Style.RESET_ALL}")
-        return
-
-    results = []
-    trace_data = scanner[host].get('traceroute', {}).get('hop', [])
-    if not trace_data:
-        results.append({'Hop': 'N/A', 'IP': 'N/A', 'RTT': 'N/A'})
-    else:
-        for hop in trace_data:
-            results.append({
-                'Hop': hop.get('ttl', 'N/A'),
-                'IP': hop.get('ipaddr', 'N/A'),
-                'RTT': hop.get('rtt', 'N/A')
-            })
-
-    table = tabulate(results, headers="keys", tablefmt="grid")
-    print(table)
-    prompt_save(table)
+            f.write(command + '\n')
+        print(f"Saved to {filename}")
 
 def main():
-    scanner = nmap.PortScanner()
-    user_input = input(f"{Fore.LIGHTCYAN_EX}Enter the domain or IP address to scan: {Style.RESET_ALL}").strip()
-    host = resolve_host(user_input)
-    if not host:
-        return
-
-    print(f"\n{Fore.LIGHTYELLOW_EX}Choose a functionality:{Style.RESET_ALL}")
-    print("1. Port Scan")
-    print("2. System Detection")
-    print("3. Vulnerability Identification")
-    print("4. Network Topology & Architecture")
-
-    choice = input(f"{Fore.LIGHTYELLOW_EX}Enter choice (1/2/3/4): {Style.RESET_ALL}").strip()
-
-    if choice == '1':
-        port_scan(scanner, host)
-    elif choice == '2':
-        system_detection(scanner, host)
-    elif choice == '3':
-        vulnerability_scan(scanner, host)
-    elif choice == '4':
-        network_topology(scanner, host)
-    else:
-        print(f"{Fore.LIGHTRED_EX}Invalid choice. Exiting.{Style.RESET_ALL}")
+    ascii_art("Nmap Teddy", Fore.LIGHTGREEN_EX)
+    print("1. Port Scan\n2. Service Detection\n3. OS Detection\n4. Vulnerability Scan\n5. Stealth Scan\n6. Aggressive Scan\n7. Traceroute Scan\n8. Custom Scan")
+    choice = prompt_input("Choose scan type", "1")
+    if choice == '1': port_scan()
+    elif choice == '2': service_scan()
+    elif choice == '3': os_detection()
+    elif choice == '4': vuln_scan()
+    elif choice == '5': stealth_scan()
+    elif choice == '6': aggressive_scan()
+    elif choice == '7': traceroute_scan()
+    elif choice == '8': custom_scan()
+    else: print("Invalid choice")
 
 if __name__ == "__main__":
     main()
+
